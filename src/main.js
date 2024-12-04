@@ -2,19 +2,16 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
-import { extractTextFromPDF } from './read.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
+import { extractTextFromPDF } from './extract-text.js';
+import { getGeminiClient } from './gemini-api.js'; 
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_KEY
-
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 const filePath = 'BRII Australian Cyber Security Strategy Challenge Factsheet PDF.pdf';
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
 
 // Fetch data from a table
 async function fetchData() {
@@ -59,37 +56,6 @@ async function uploadFile(filePath) {
 
 }
 
-async function readPDF(filePath) {
-    try {
-        const text = await extractTextFromPDF(filePath);
-        // console.log(embedText(text))
-      } catch (error) {
-        console.error('Failed to extract text:', error.message);
-      }
-  }
-  
-const getGeminiClient = () => {
-    // Ensure the API key is provided
-    if (!GEMINI_API_KEY) {
-      throw new Error('Google API key is not set in environment variables');
-    }
-
-    // Initialize the Generative AI client
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({model:GeminiModels.TextEmbedding})
-    console.log("Model successfully initiated!")
-
-    return model
-
-}
-
-const GeminiModels = {
-    Gemini15Flash8b: "gemini-1.5-flash-8b",
-    Gemini15ProLatest: "gemini-1.5-pro-latest",
-    Gemini15Flash: "gemini-1.5-flash",
-    TextEmbedding: "text-embedding-004", // Uncommented to enable the text embedding model
-};
-
 async function embedText(text) {
     try {
         const embeddingModel = getGeminiClient(); // Initialize the Gemini client
@@ -101,5 +67,7 @@ async function embedText(text) {
     }
 }
 
-uploadFile(filePath)
+// uploadFile(filePath)
+
+
 
