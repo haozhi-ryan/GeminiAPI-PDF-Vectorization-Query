@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import readline from "readline";
 import dotenv from 'dotenv';
+import { embedText, retrieveContextFromDB } from './databaseFunctions.js'
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
@@ -28,16 +29,6 @@ const GeminiModels = {
     TextEmbedding: "text-embedding-004", // Uncommented to enable the text embedding model
 };
 
-
-
-
-
-
-// Make sure to include these imports:
-
-
-// Make sure to include these imports:
-// import { GoogleGenerativeAI } from "@google/generative-ai";
 const model = genAI.getGenerativeModel({ model: GeminiModels.Gemini15Flash });
 
 const chat = model.startChat({
@@ -52,6 +43,32 @@ const chat = model.startChat({
     },
   ],
 });
+
+function truncateContext(context, maxTokens = 900000) {
+  const tokenized = context.split(" "); // Simple token approximation
+  if (tokenized.length > maxTokens) {
+      return tokenized.slice(0, maxTokens).join(" ") + "... [Truncated]";
+  }
+  return context;
+}
+
+// Helper function to get relevant context from the database
+async function getContext(userQuery) {
+  const queryEmbedding = await embedText(userQuery);
+  const contextData = await retrieveContextFromDB(queryEmbedding);
+
+  if (!contextData || contextData.length === 0) {
+      return "No relevant context found.";
+  }
+
+  const formattedContext = contextData
+      .map((row, index) => `Source [${index + 1}]:\nTitle: ${row.title}\nMetadata: ${row.metadata}\n---`)
+      .join("\n\n");
+
+  return truncateContext(formattedContext, 900000); // Keep the context under the token limit
+}
+
+
 
 // Create an interface to read input from the user in the terminal
 const rl = readline.createInterface({
@@ -77,12 +94,21 @@ async function interactiveChat() {
   
       // Send the user's message to Gemini and stream the response
       try {
-        const result = await chat.sendMessageStream(userMessage);
+        // Step 1: Retrieve relevant context from the database
+        const context = await getContext(userMessage);
+
+        // Step 2: Construct the message with or without context
+        const chatInput = context !== "No relevant context found."
+        ? `Context:\n${context}\n\nQuery: ${userMessage}`
+        : userMessage;
+    
+
+        // Step 3: Send the user's message to Gemini and stream the response
+        const result = await chat.sendMessageStream(chatInput);
         process.stdout.write("Gemini: ");
         for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
-            process.stdout.write(chunkText);
-          }
+            process.stdout.write(chunk.text());
+                    }
         console.log(); // Add a newline after the complete response
       } catch (error) {
         console.error("An error occurred:", error.message);

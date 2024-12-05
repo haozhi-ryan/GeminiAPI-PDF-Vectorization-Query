@@ -1,6 +1,6 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const pdfParse = require('./pdf-parse-wrapper.cjs');
+const pdfParse = require('./pdfParseWrapper.cjs');
 import fs from 'fs/promises';
 
 // console.log('pdfParse loaded successfully.');
